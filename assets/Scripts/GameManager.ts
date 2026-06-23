@@ -164,5 +164,251 @@ export class GameManager extends Component {
                 { gridX: 1, gridY: 15, direction: MoveDirection.RIGHT },
             ]
         },
+
+        {
+            color: SnakeColor.VIOLET,
+            path: [
+                { gridX: 7, gridY: 21, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 20, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 19, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 18, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 17, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 16, direction: MoveDirection.UP },
+                { gridX: 7, gridY: 15, direction: MoveDirection.RIGHT },
+                { gridX: 6, gridY: 15, direction: MoveDirection.RIGHT },
+                { gridX: 5, gridY: 15, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 15, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 15, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.RED,
+            path: [
+                { gridX: 2, gridY: 19, direction: MoveDirection.DOWN },
+                { gridX: 2, gridY: 20, direction: MoveDirection.DOWN },
+                { gridX: 2, gridY: 21, direction: MoveDirection.LEFT },
+                { gridX: 3, gridY: 21, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 21, direction: MoveDirection.LEFT },
+                { gridX: 5, gridY: 21, direction: MoveDirection.LEFT },
+                { gridX: 6, gridY: 21, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 20, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 19, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 18, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 17, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 16, direction: MoveDirection.RIGHT },
+                { gridX: 5, gridY: 16, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 16, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 16, direction: MoveDirection.DOWN },
+                { gridX: 3, gridY: 17, direction: MoveDirection.DOWN },
+                { gridX: 3, gridY: 18, direction: MoveDirection.DOWN },
+                { gridX: 3, gridY: 19, direction: MoveDirection.DOWN },
+                { gridX: 3, gridY: 20, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 20, direction: MoveDirection.LEFT },
+                { gridX: 5, gridY: 20, direction: MoveDirection.UP },
+                { gridX: 5, gridY: 19, direction: MoveDirection.UP },
+                { gridX: 5, gridY: 18, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 18, direction: MoveDirection.UP },
+                { gridX: 4, gridY: 17, direction: MoveDirection.LEFT },
+                { gridX: 5, gridY: 17, direction: MoveDirection.LEFT },
+            ]
+        },
+
+        {
+            color: SnakeColor.BLUE,
+            path: [
+                { gridX: 8, gridY: 16, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 17, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 18, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 19, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 20, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 21, direction: MoveDirection.DOWN },
+            ]
+        },
+
+        {
+            color: SnakeColor.VIOLET,
+            path: [
+                { gridX: 5, gridY: 11, direction: MoveDirection.DOWN },
+                { gridX: 5, gridY: 12, direction: MoveDirection.DOWN },
+                { gridX: 5, gridY: 13, direction: MoveDirection.DOWN },
+                { gridX: 5, gridY: 14, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 14, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 14, direction: MoveDirection.RIGHT },
+                { gridX: 2, gridY: 14, direction: MoveDirection.RIGHT },
+                { gridX: 1, gridY: 14, direction: MoveDirection.UP },
+                { gridX: 1, gridY: 13, direction: MoveDirection.LEFT },
+                { gridX: 2, gridY: 13, direction: MoveDirection.UP },
+                { gridX: 2, gridY: 12, direction: MoveDirection.UP },
+                { gridX: 2, gridY: 11, direction: MoveDirection.RIGHT },
+                { gridX: 1, gridY: 11, direction: MoveDirection.DOWN },
+                { gridX: 1, gridY: 12, direction: MoveDirection.DOWN },
+            ]
+        },
+
+        {
+            color: SnakeColor.BLUE,
+            path: [
+                { gridX: 3, gridY: 13, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 13, direction: MoveDirection.LEFT },
+            ]
+        },
+
+        {
+            color: SnakeColor.GREEN,
+            path: [
+                { gridX: 3, gridY: 12, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 12, direction: MoveDirection.UP },
+                { gridX: 4, gridY: 11, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 11, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.RED,
+            path: [
+                { gridX: 4, gridY: 9, direction: MoveDirection.DOWN },
+                { gridX: 4, gridY: 10, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 10, direction: MoveDirection.UP },
+                { gridX: 3, gridY: 9, direction: MoveDirection.RIGHT },
+                { gridX: 2, gridY: 9, direction: MoveDirection.DOWN },
+                { gridX: 2, gridY: 10, direction: MoveDirection.RIGHT },
+                { gridX: 1, gridY: 10, direction: MoveDirection.UP },
+                { gridX: 1, gridY: 9, direction: MoveDirection.UP },
+            ]
+        },
+
+        {
+            color: SnakeColor.YELLOW,
+            path: [
+                { gridX: 5, gridY: 9, direction: MoveDirection.DOWN },
+                { gridX: 5, gridY: 10, direction: MoveDirection.LEFT },
+                { gridX: 6, gridY: 10, direction: MoveDirection.DOWN },
+                { gridX: 6, gridY: 11, direction: MoveDirection.DOWN },
+            ]
+        },
+
+        {
+            color: SnakeColor.BLUE,
+            path: [
+                { gridX: 7, gridY: 11, direction: MoveDirection.LEFT },
+                { gridX: 8, gridY: 11, direction: MoveDirection.DOWN },
+                { gridX: 8, gridY: 12, direction: MoveDirection.RIGHT },
+                { gridX: 7, gridY: 12, direction: MoveDirection.RIGHT },
+                { gridX: 6, gridY: 12, direction: MoveDirection.DOWN },
+                { gridX: 6, gridY: 13, direction: MoveDirection.DOWN },
+                { gridX: 6, gridY: 14, direction: MoveDirection.LEFT },
+                { gridX: 7, gridY: 14, direction: MoveDirection.LEFT },
+                { gridX: 8, gridY: 14, direction: MoveDirection.UP },
+                { gridX: 8, gridY: 13, direction: MoveDirection.RIGHT },
+                { gridX: 7, gridY: 13, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.YELLOW,
+            path: [
+                { gridX: 10, gridY: 21, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 20, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 19, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 18, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 17, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 16, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 15, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 14, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 13, direction: MoveDirection.UP },
+                { gridX: 10, gridY: 12, direction: MoveDirection.RIGHT },
+                { gridX: 9, gridY: 12, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 13, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 14, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 15, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 16, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 17, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 18, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 19, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 20, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 21, direction: MoveDirection.DOWN },
+                { gridX: 9, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 8, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 7, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 6, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 5, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 22, direction: MoveDirection.RIGHT },
+                { gridX: 2, gridY: 22, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.YELLOW,
+            path: [
+                { gridX: 1, gridY: 3, direction: MoveDirection.RIGHT },
+                { gridX: 0, gridY: 3, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.RED,
+            path: [
+                { gridX: 6, gridY: 2, direction: MoveDirection.RIGHT },
+                { gridX: 5, gridY: 2, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 2, direction: MoveDirection.UP },
+                { gridX: 4, gridY: 1, direction: MoveDirection.UP },
+                { gridX: 4, gridY: 0, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 0, direction: MoveDirection.RIGHT },
+                { gridX: 2, gridY: 0, direction: MoveDirection.RIGHT },
+                { gridX: 1, gridY: 0, direction: MoveDirection.RIGHT },
+                { gridX: 0, gridY: 0, direction: MoveDirection.DOWN },
+                { gridX: 0, gridY: 1, direction: MoveDirection.DOWN },
+                { gridX: 0, gridY: 2, direction: MoveDirection.LEFT },
+                { gridX: 1, gridY: 2, direction: MoveDirection.UP },
+                { gridX: 1, gridY: 1, direction: MoveDirection.LEFT },
+                { gridX: 2, gridY: 1, direction: MoveDirection.LEFT },
+                { gridX: 3, gridY: 1, direction: MoveDirection.DOWN},
+                { gridX: 3, gridY: 2, direction: MoveDirection.DOWN},
+                { gridX: 3, gridY: 3, direction: MoveDirection.DOWN},
+                { gridX: 3, gridY: 4, direction: MoveDirection.DOWN},
+                { gridX: 3, gridY: 5, direction: MoveDirection.DOWN},
+            ]
+        },
+
+        {
+            color: SnakeColor.GREEN,
+            path: [
+                { gridX: 1, gridY: 6, direction: MoveDirection.LEFT },
+                { gridX: 2, gridY: 6, direction: MoveDirection.UP },
+                { gridX: 2, gridY: 5, direction: MoveDirection.RIGHT },
+                { gridX: 1, gridY: 5, direction: MoveDirection.RIGHT },
+            ]
+        },
+
+        {
+            color: SnakeColor.VIOLET,
+            path: [
+                { gridX: 1, gridY: 7, direction: MoveDirection.LEFT },
+                { gridX: 2, gridY: 7, direction: MoveDirection.LEFT },
+            ]
+        },
+
+        {
+            color: SnakeColor.BLUE,
+            path: [
+                { gridX: 2, gridY: 8, direction: MoveDirection.LEFT },
+                { gridX: 3, gridY: 8, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 8, direction: MoveDirection.LEFT },
+                { gridX: 5, gridY: 8, direction: MoveDirection.LEFT },
+                { gridX: 6, gridY: 8, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 7, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 6, direction: MoveDirection.UP },
+                { gridX: 6, gridY: 5, direction: MoveDirection.RIGHT },
+                { gridX: 5, gridY: 5, direction: MoveDirection.DOWN },
+                { gridX: 5, gridY: 6, direction: MoveDirection.RIGHT },
+                { gridX: 4, gridY: 6, direction: MoveDirection.RIGHT },
+                { gridX: 3, gridY: 6, direction: MoveDirection.DOWN },
+                { gridX: 3, gridY: 7, direction: MoveDirection.LEFT },
+                { gridX: 4, gridY: 7, direction: MoveDirection.LEFT },
+                { gridX: 5, gridY: 7, direction: MoveDirection.LEFT },
+            ]
+        },
     ];
 }
