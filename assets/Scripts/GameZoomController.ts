@@ -149,11 +149,10 @@ export class GameZoomController extends Component {
     }
 
     protected onDestroy() {
-        if (this.zoomButton) {
-            this.zoomButton.targetOff(this);
+        if (this.node && this.node.isValid) {
+            this.node.off(Node.EventType.TOUCH_START, this.onIconPress, this);
+            this.node.off(Node.EventType.TOUCH_END, this.onIconRelease, this);
+            this.node.off(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this);
         }
-        this.node.off(Node.EventType.TOUCH_START, this.onIconPress, this);
-        this.node.off(Node.EventType.TOUCH_END, this.onIconRelease, this);
-        this.node.off(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this);
     }
 }

@@ -97,9 +97,11 @@ export class GameManager extends Component {
                 continue;
             }
 
+            const independentPath = JSON.parse(JSON.stringify(snakeData.path));
+
             snakeComp.initSnake(
                 snakeData.color,
-                snakeData.path,
+                independentPath, // Truyền mảng độc lập vào đây
                 this.spacing
             );
         }

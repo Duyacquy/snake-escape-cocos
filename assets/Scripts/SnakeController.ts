@@ -2,6 +2,7 @@ import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Si
 import { SnakeColor, SnakeNodeData, MoveDirection } from './SnakeCommon';
 import { GridManager } from './GridManager';
 import { TimeManager } from './TimeManager';
+import { HealthManager } from './HealthManager';
 
 const { ccclass, property } = _decorator;
 
@@ -86,6 +87,8 @@ export class SnakeController extends Component {
         if (this.isMoving) return;
         if (TimeManager.Instance && TimeManager.Instance.isGamePaused) return;
 
+        this.clearFromGrid();
+        
         // Sao lưu lại tọa độ ban đầu đề phòng trường hợp phải đi lùi về
         this.originalPathBackup = JSON.stringify(this.snakeSegments);
 
@@ -147,7 +150,6 @@ export class SnakeController extends Component {
         if (!this.isStepTransitioning) return;
         if (TimeManager.Instance && TimeManager.Instance.isGamePaused) return;
 
-        // 🌟 CẢI TIẾN: Nếu đang đi lùi thì giảm progress, đang đi tiến thì tăng progress
         if (!this.isReversing) {
             this.moveProgress += dt / this.stepDuration;
         } else {
@@ -181,6 +183,10 @@ export class SnakeController extends Component {
                     
                     if (TimeManager.Instance) {
                         TimeManager.Instance.playRedAura();
+                    }
+
+                    if (HealthManager.Instance) {
+                        HealthManager.Instance.loseHeart();
                     }
 
                     this.isReversing = true;
