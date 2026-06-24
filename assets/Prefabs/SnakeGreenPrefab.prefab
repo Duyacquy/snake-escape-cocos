@@ -115,6 +115,10 @@
       "__uuid__": "bb2402eb-4b6f-46d1-9571-6b11197688b7@f9941",
       "__expectedType__": "cc.SpriteFrame"
     },
+    "headEyeSprite": {
+      "__uuid__": "d5abd235-fec6-451a-8989-c2d7b86c27a4@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
     "_id": ""
   },
   {

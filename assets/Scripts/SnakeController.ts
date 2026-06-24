@@ -1,7 +1,15 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Size, tween, math } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Size, math } from 'cc';
 import { SnakeColor, SnakeNodeData, MoveDirection } from './SnakeCommon';
 import { GridManager } from './GridManager';
 const { ccclass, property } = _decorator;
+
+interface InterpNodeData {
+    x: number;
+    y: number;
+    dir: MoveDirection;
+    type: 'head' | 'body' | 'tail1' | 'tail2' | 'eye';
+    id: number;
+}
 
 @ccclass('SnakeController')
 export class SnakeController extends Component {
@@ -9,31 +17,49 @@ export class SnakeController extends Component {
     @property({ type: SpriteFrame }) private bodySprite: SpriteFrame = null!;
     @property({ type: SpriteFrame }) private tail1Sprite: SpriteFrame = null!;
     @property({ type: SpriteFrame }) private tail2Sprite: SpriteFrame = null!;
+    @property({ type: SpriteFrame }) private headEyeSprite: SpriteFrame = null!;
 
     public snakeId: string = "";
+    private static nextSnakeId = 0;
+    
     private snakeSegments: SnakeNodeData[] = [];
+    
+    // MẢNG ĐƯỜNG MÒN: Lưu vị trí Pixel chính xác của TẤT CẢ các đốt (Cả đốt phụ)
+    private renderPathCurrent: { x: number, y: number, dir: MoveDirection }[] = [];
+    private renderPathPrevious: { x: number, y: number, dir: MoveDirection }[] = [];
+
     private gridSpacing: number = 64;
     private isMoving: boolean = false;
 
-protected onLoad() {
-    this.snakeId = `snake_${math.generateUUID()}`;
+    private moveProgress: number = 0; 
+    private isStepTransitioning: boolean = false;
+    private stepDuration: number = 0.15; // Thời gian bò qua 1 ô (giây)
+    private currentStep: number = 0;
+    private totalSteps: number = 0;
+    private hasCollision: boolean = false;
+    private isEscaping: boolean = false;
 
-    const rootSprite = this.node.getComponent(Sprite);
-    if (rootSprite) {
-        rootSprite.enabled = false;
+    protected onLoad() {
+        this.snakeId = `snake_${SnakeController.nextSnakeId++}`;
+        const rootSprite = this.node.getComponent(Sprite);
+        if (rootSprite) rootSprite.enabled = false;
+
+        this.node.on(Node.EventType.TOUCH_END, this.onSnakeClicked, this);
     }
-
-    this.node.on(Node.EventType.TOUCH_END, this.onSnakeClicked, this);
-}
 
     public initSnake(color: SnakeColor, path: SnakeNodeData[], spacing: number) {
         this.gridSpacing = spacing;
         this.snakeSegments = path;
+        
         this.registerToGrid();
-        this.drawSnake();
+        
+        // Khởi tạo đường mòn pixel tĩnh ban đầu
+        this.generateRenderPathFromSegments();
+        this.renderPathPrevious = JSON.parse(JSON.stringify(this.renderPathCurrent));
+        
+        this.drawSnake(0);
     }
 
-    // Đăng ký các đốt của mình lên hệ thống Grid chung
     private registerToGrid() {
         this.snakeSegments.forEach(seg => {
             if (Number.isInteger(seg.gridX) && Number.isInteger(seg.gridY)) {
@@ -42,7 +68,6 @@ protected onLoad() {
         });
     }
 
-    // Xóa các đốt khỏi Grid khi di chuyển
     private clearFromGrid() {
         this.snakeSegments.forEach(seg => {
             if (Number.isInteger(seg.gridX) && Number.isInteger(seg.gridY)) {
@@ -57,120 +82,32 @@ protected onLoad() {
     }
 
     private startMoving() {
+        if (this.isMoving) return;
         this.isMoving = true;
-        
-        // Giải phóng grid hiện tại để phục vụ tính toán không bị đụng chính mình
         this.clearFromGrid();
 
-        // 1. DỰ ĐOÁN TƯƠNG LAI: Kiểm tra xem đi được tối đa bao nhiêu bước
         const simulation = this.predictMovement();
         
-        if (simulation.hasCollision) {
-            // Trường hợp TRONG TƯƠNG LAI CÓ VA CHẠM: Đi tới điểm va chạm rồi giật lại
-            this.executeMoveWithCollision(simulation.steps, simulation.collisionDir);
-        } else {
-            // Trường hợp TRONG TƯƠNG LAI KHÔNG VA CHẠM: Đi thẳng ra khỏi map (Win/Escape)
-            this.executeEscape();
-        }
+        this.currentStep = 0;
+        this.totalSteps = simulation.steps;
+        this.hasCollision = simulation.hasCollision;
+        this.isEscaping = !simulation.hasCollision;
+        
+        this.moveProgress = 0;
+        this.isStepTransitioning = true;
+        
+        this.prepareNextStep();
     }
 
-    // Hàm mô phỏng bước đi trong tương lai
-    private predictMovement() {
-        // Sao chép mảng segments để giả lập chạy thử
-        let tempSegments = JSON.parse(JSON.stringify(this.snakeSegments)) as SnakeNodeData[];
-        let steps = 0;
-        let hasCollision = false;
-        let collisionDir = MoveDirection.UP;
+    // Cơ chế dịch chuyển mảng pixel: Đốt sau tiến lên đúng vị trí đốt trước đã đi qua
+    private prepareNextStep() {
+        // 1. Lưu lại đường mòn cũ làm mốc Lerp xuất phát
+        this.renderPathPrevious = JSON.parse(JSON.stringify(this.renderPathCurrent));
 
-        // Cho rắn chạy giả lập từng bước cho đến khi thoát hẳn hoặc đụng độ
-        while (true) {
-            const head = tempSegments[0];
-            const nextCoords = this.getNextCoordinate(head.gridX, head.gridY, head.direction);
-
-            // Kiểm tra xem ô tiếp theo có trống không
-            if (!GridManager.Instance.isCellEmpty(nextCoords.x, nextCoords.y, this.snakeId)) {
-                // Nếu ô tiếp theo nằm NGOÀI BIÊN bản đồ -> Nghĩa là rắn đã TRỐN THOÁT THÀNH CÔNG (Không tính là va chạm)
-                if (nextCoords.x < 0 || nextCoords.x >= GridManager.Instance.cols || 
-                    nextCoords.y < 0 || nextCoords.y >= GridManager.Instance.rows) {
-                    hasCollision = false;
-                } else {
-                    // Đụng phải rắn khác hoặc chướng ngại vật trong map
-                    hasCollision = true;
-                    collisionDir = head.direction;
-                }
-                break;
-            }
-
-            // Di chuyển mảng giả lập tiến lên 1 bước
-            for (let i = tempSegments.length - 1; i > 0; i--) {
-                tempSegments[i].gridX = tempSegments[i - 1].gridX;
-                tempSegments[i].gridY = tempSegments[i - 1].gridY;
-                tempSegments[i].direction = tempSegments[i - 1].direction;
-            }
-            tempSegments[0].gridX = nextCoords.x;
-            tempSegments[0].gridY = nextCoords.y;
-            // Giữ nguyên hướng đầu hoặc cập nhật theo thiết kế (ở đây đi thẳng nên giữ nguyên hướng đầu)
-
-            steps++;
-            
-            // Safety check đề phòng vòng lặp vô hạn ngoài ý muốn
-            if (steps > 100) break;
-        }
-
-        return { steps, hasCollision, collisionDir };
-    }
-
-    // Di chuyển tịnh tiến thực tế từng ô (Hàm đệ quy hoặc dùng Tween lặp)
-    private executeMoveWithCollision(totalSteps: number, collisionDir: MoveDirection) {
-        if (totalSteps === 0) {
-            // Bị chặn ngay từ bước đầu tiên -> Thực hiện hiệu ứng giật nhẹ tại chỗ luôn
-            this.playBounceEffect(collisionDir);
-            return;
-        }
-
-        let currentStep = 0;
-        const moveOneStep = () => {
-            if (currentStep < totalSteps) {
-                this.moveAllSegmentsForward();
-                currentStep++;
-                
-                // Di chuyển mượt bằng tween, xong bước này thì gọi bước tiếp theo
-                scheduleOnce(() => { moveOneStep(); }, 0.1); 
-            } else {
-                // Đã đến điểm va chạm -> Giật lại và choáng
-                this.playBounceEffect(collisionDir);
-            }
-        };
-
-        moveOneStep();
-    }
-
-    // Di chuyển thẳng ra khỏi màn hình
-    private executeEscape() {
-        const escapeRoutine = () => {
-            // Kiểm tra xem đốt cuối cùng (đuôi) đã ra khỏi màn hình chưa
-            const head = this.snakeSegments[0];
-            if (head.gridX < -5 || head.gridX > GridManager.Instance.cols + 5 ||
-                head.gridY < -5 || head.gridY > GridManager.Instance.rows + 5) {
-                
-                // Rắn đã biến mất hoàn toàn khỏi màn hình -> Hủy node
-                this.node.destroy();
-                // TODO: Gửi sự kiện về GameManager để check xem thắng màn chơi chưa
-                return;
-            }
-
-            this.moveAllSegmentsForward();
-            scheduleOnce(() => { escapeRoutine(); }, 0.08); // Tốc độ chạy thoát nhanh hơn tí cho mượt
-        };
-
-        escapeRoutine();
-    }
-
-    // Hàm thực hiện dịch chuyển mảng tọa độ thực tế tiến lên 1 ô
-    private moveAllSegmentsForward() {
+        // 2. Cập nhật ma trận ô lưới logic (Đi trước 1 ô)
         const head = this.snakeSegments[0];
         const nextCoords = this.getNextCoordinate(head.gridX, head.gridY, head.direction);
-
+        
         for (let i = this.snakeSegments.length - 1; i > 0; i--) {
             this.snakeSegments[i].gridX = this.snakeSegments[i - 1].gridX;
             this.snakeSegments[i].gridY = this.snakeSegments[i - 1].gridY;
@@ -179,34 +116,216 @@ protected onLoad() {
         this.snakeSegments[0].gridX = nextCoords.x;
         this.snakeSegments[0].gridY = nextCoords.y;
 
-        // Cập nhật lại UI hiển thị ngay lập tức
-        this.drawSnake();
+        // 3. Tái tạo lại đường mòn ĐÍCH cho bước này
+        this.generateRenderPathFromSegments();
     }
 
-    // Hiệu ứng giật ngược lại khi va chạm (Bounce Back) và kết thúc di chuyển
-    private playBounceEffect(dir: MoveDirection) {
-        let bounceOffset = new Vec3(0, 0, 0);
-        const strength = 15; // Độ thọt/giật tính bằng pixel
+    protected update(dt: number) {
+        if (!this.isStepTransitioning) return;
 
-        if (dir === MoveDirection.UP) bounceOffset.y = strength;
-        if (dir === MoveDirection.DOWN) bounceOffset.y = -strength;
-        if (dir === MoveDirection.LEFT) bounceOffset.x = -strength;
-        if (dir === MoveDirection.RIGHT) bounceOffset.x = strength;
+        this.moveProgress += dt / this.stepDuration;
 
-        const originalPos = this.node.getPosition();
+        if (this.moveProgress >= 1) {
+            this.moveProgress = 0;
+            this.currentStep++;
 
-        tween(this.node)
-            .by(0.05, { position: bounceOffset }, { easing: 'sineOut' })
-            .to(0.1, { position: originalPos }, { easing: 'sineIn' })
-            .call(() => {
-                this.registerToGrid();
-                this.isMoving = false;
-                console.log("Rắn bị choáng!");
-            })
-            .start();
+            if (this.isEscaping) {
+                // Thoát map hoàn toàn: chạy cho đến khi toàn bộ các đốt phụ chui ra ngoài
+                const totalEscapeSteps = this.totalSteps + this.snakeSegments.length + 2;
+                if (this.currentStep < totalEscapeSteps) {
+                    this.prepareNextStep();
+                } else {
+                    this.isStepTransitioning = false;
+                    this.node.destroy();
+                    return;
+                }
+            } else {
+                if (this.currentStep < this.totalSteps) {
+                    this.prepareNextStep();
+                } else {
+                    this.isStepTransitioning = false;
+                    this.isMoving = false;
+                    this.registerToGrid();
+                    this.drawSnake(0);
+                    return;
+                }
+            }
+        }
+
+        this.drawSnake(this.moveProgress);
     }
 
-    // Tiện ích tính tọa độ tiếp theo dựa vào hướng
+    // HÀM CỐT LÕI: Rải toàn bộ đốt chính và đốt phụ lên một danh sách tọa độ Pixel cố định phẳng
+    private generateRenderPathFromSegments() {
+        const cols = GridManager.Instance.cols;
+        const rows = GridManager.Instance.rows;
+        const dotDistance = this.gridSpacing * 2;
+        const totalDots = this.snakeSegments.length;
+
+        this.renderPathCurrent = [];
+
+        for (let i = 0; i < totalDots; i++) {
+            const curr = this.snakeSegments[i];
+            
+            // Lấy vị trí Pixel thực tế trên màn hình của ô lưới logic
+            const posX = (curr.gridX - cols / 2) * dotDistance;
+            const posY = (curr.gridY - rows / 2) * dotDistance;
+
+            // Đưa đốt chính vào đường mòn
+            this.renderPathCurrent.push({ x: posX, y: posY, dir: curr.direction });
+
+            // Nếu chưa phải đốt cuối, chèn thêm 2 đốt phụ nối đuôi thẳng hàng
+            if (i < totalDots - 1) {
+                const next = this.snakeSegments[i + 1];
+                const nextX = (next.gridX - cols / 2) * dotDistance;
+                const nextY = (next.gridY - rows / 2) * dotDistance;
+
+                const dx = nextX - posX;
+                const dy = nextY - posY;
+
+                // Đốt phụ 1 (chiếm 1/3 khoảng cách)
+                this.renderPathCurrent.push({
+                    x: posX + dx / 3,
+                    y: posY + dy / 3,
+                    dir: curr.direction
+                });
+
+                // Đốt phụ 2 (chiếm 2/3 khoảng cách)
+                this.renderPathCurrent.push({
+                    x: posX + dx * 2 / 3,
+                    y: posY + dy * 2 / 3,
+                    dir: curr.direction
+                });
+            }
+        }
+    }
+
+    // Hàm vẽ mới: Đốt nào đi theo vị trí pixel của đốt đó, trượt tuyến tính 1 chiều mượt mà
+    public drawSnake(progress: number) {
+        this.node.removeAllChildren();
+
+        const totalDots = this.snakeSegments.length;
+        if (totalDots < 2) return;
+
+        const segmentSize = this.gridSpacing * 1.3;
+        const totalRenderNodes = this.renderPathCurrent.length;
+
+        // Xây dựng danh sách các mảnh cần vẽ dựa trên chỉ số index cố định của mảng đường mòn
+        for (let i = 0; i < totalRenderNodes; i++) {
+            const currPath = this.renderPathCurrent[i];
+            const prevPath = this.renderPathPrevious[i] || currPath;
+
+            // NỘI SUY PHẲNG: Trượt mượt từ vị trí pixel cũ sang vị trí pixel mới
+            const interpX = math.lerp(prevPath.x, currPath.x, progress);
+            const interpY = math.lerp(prevPath.y, currPath.y, progress);
+            const finalDir = progress < 0.5 ? prevPath.dir : currPath.dir;
+
+            // Xác định loại Sprite tương ứng với vị trí index trong chuỗi
+            let spriteFrame = this.bodySprite;
+            let name = `Body_${i}`;
+            let sizeFactor = 1.0;
+            let zOrder = i * 10;
+
+            if (i === 0) {
+                // ĐẦU RẮN
+                spriteFrame = this.headSprite;
+                name = "Head";
+                sizeFactor = 1.15;
+                zOrder = 0;
+
+                // MẮT RẮN (Nằm đè lên đầu)
+                if (this.headEyeSprite) {
+                    this.createSegmentNode("HeadEye", this.headEyeSprite, interpX, interpY, finalDir, segmentSize * 1.1, -1);
+                }
+            } else if (i === totalRenderNodes - 1) {
+                // ĐUÔI PHỤ TAIL2
+                spriteFrame = this.tail2Sprite;
+                name = "Tail2";
+                sizeFactor = 0.7;
+                zOrder = zOrder + 5;
+            } else if (i === totalRenderNodes - 2) {
+                // ĐUÔI CHÍNH TAIL1
+                spriteFrame = this.tail1Sprite;
+                name = "Tail1";
+                sizeFactor = 0.85;
+                zOrder = zOrder + 4;
+            } else if (i % 3 === 0) {
+                // Các đốt chính (Nằm đúng vị trí dấu chấm tròn)
+                spriteFrame = this.bodySprite;
+                name = `DotSegment_${i}`;
+                sizeFactor = 1.0;
+            } else {
+                // Các đốt phụ nằm giữa
+                spriteFrame = this.bodySprite;
+                name = `BetweenSegment_${i}`;
+                sizeFactor = 1.0;
+            }
+
+            this.createSegmentNode(name, spriteFrame, interpX, interpY, finalDir, segmentSize * sizeFactor, zOrder);
+        }
+
+        // Sắp xếp lại thứ tự vẽ (Đầu trên cùng, đuôi dưới cùng)
+        const children = [...this.node.children];
+        children.sort((a: any, b: any) => (b.customZOrder || 0) - (a.customZOrder || 0));
+        this.node.removeAllChildren();
+        children.forEach(child => this.node.addChild(child));
+    }
+
+    // Hàm tiện ích khởi tạo Node con nhanh gọn
+    private createSegmentNode(name: string, spriteFrame: SpriteFrame, x: number, y: number, dir: MoveDirection, size: number, zOrder: number) {
+        const segmentNode = new Node(name);
+        (segmentNode as any).customZOrder = zOrder;
+
+        const sprite = segmentNode.addComponent(Sprite);
+        sprite.spriteFrame = spriteFrame;
+        sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+
+        const uiTransform = segmentNode.addComponent(UITransform);
+        uiTransform.setContentSize(new Size(size, size));
+
+        segmentNode.setPosition(new Vec3(x, y, 0));
+        segmentNode.setRotationFromEuler(new Vec3(0, 0, this.getRotationAngle(dir)));
+
+        segmentNode.on(Node.EventType.TOUCH_END, this.onSnakeClicked, this);
+        this.node.addChild(segmentNode);
+    }
+
+    private predictMovement() {
+        let tempSegments = JSON.parse(JSON.stringify(this.snakeSegments)) as SnakeNodeData[];
+        let steps = 0;
+        let hasCollision = false;
+        let collisionDir = MoveDirection.UP;
+
+        while (true) {
+            const head = tempSegments[0];
+            const nextCoords = this.getNextCoordinate(head.gridX, head.gridY, head.direction);
+
+            if (!GridManager.Instance.isCellEmpty(nextCoords.x, nextCoords.y, this.snakeId)) {
+                if (nextCoords.x < 0 || nextCoords.x >= GridManager.Instance.cols || 
+                    nextCoords.y < 0 || nextCoords.y >= GridManager.Instance.rows) {
+                    hasCollision = false;
+                } else {
+                    hasCollision = true;
+                    collisionDir = head.direction;
+                }
+                break;
+            }
+
+            for (let i = tempSegments.length - 1; i > 0; i--) {
+                tempSegments[i].gridX = tempSegments[i - 1].gridX;
+                tempSegments[i].gridY = tempSegments[i - 1].gridY;
+                tempSegments[i].direction = tempSegments[i - 1].direction;
+            }
+            tempSegments[0].gridX = nextCoords.x;
+            tempSegments[0].gridY = nextCoords.y;
+
+            steps++;
+            if (steps > 100) break;
+        }
+
+        return { steps, hasCollision, collisionDir };
+    }
+
     private getNextCoordinate(x: number, y: number, dir: MoveDirection) {
         switch (dir) {
             case MoveDirection.UP: return { x, y: y + 1 };
@@ -216,134 +335,12 @@ protected onLoad() {
         }
     }
 
-    // Hàm drawSnake() giữ nguyên logic tạo Sprite/xoay hướng từ bước trước...
-    public drawSnake() {
-        this.node.removeAllChildren();
-
-        const totalDots = this.snakeSegments.length;
-        if (totalDots < 2) return;
-
-        const segmentSize = this.gridSpacing * 1.3;
-
-        const cols = GridManager.Instance.cols;
-        const rows = GridManager.Instance.rows;
-        const dotDistance = this.gridSpacing * 2;
-
-        type RenderPiece = {
-            name: string;
-            spriteFrame: SpriteFrame;
-            gridX: number;
-            gridY: number;
-            direction: MoveDirection;
-            order: number;
-        };
-
-        const pieces: RenderPiece[] = [];
-
-        // 1. Vẽ các phần nằm đúng trên dot
-        for (let i = 0; i < totalDots; i++) {
-            const data = this.snakeSegments[i];
-
-            let spriteFrame: SpriteFrame;
-
-            if (i === 0) {
-                spriteFrame = this.headSprite;
-            } else if (i === totalDots - 1) {
-                spriteFrame = this.tail1Sprite;
-            } else {
-                spriteFrame = this.bodySprite;
-            }
-
-            pieces.push({
-                name: `Dot_${i}`,
-                spriteFrame,
-                gridX: data.gridX,
-                gridY: data.gridY,
-                direction: data.direction,
-                order: i * 10
-            });
-        }
-
-        // 2. Mỗi khoảng giữa 2 dot có đúng 2 body
-        for (let i = 0; i < totalDots - 1; i++) {
-            const current = this.snakeSegments[i];
-            const next = this.snakeSegments[i + 1];
-
-            const dx = next.gridX - current.gridX;
-            const dy = next.gridY - current.gridY;
-
-            pieces.push({
-                name: `BodyBetween_${i}_1`,
-                spriteFrame: this.bodySprite,
-                gridX: current.gridX + dx / 3,
-                gridY: current.gridY + dy / 3,
-                direction: current.direction,
-                order: i * 10 + 1
-            });
-
-            pieces.push({
-                name: `BodyBetween_${i}_2`,
-                spriteFrame: this.bodySprite,
-                gridX: current.gridX + dx * 2 / 3,
-                gridY: current.gridY + dy * 2 / 3,
-                direction: current.direction,
-                order: i * 10 + 2
-            });
-        }
-
-        // 3. Tail2 nằm sau Tail1, không nằm trong snakeSegments
-        const tail1 = this.snakeSegments[totalDots - 1];
-        const beforeTail = this.snakeSegments[totalDots - 2];
-
-        const tailDx = tail1.gridX - beforeTail.gridX;
-        const tailDy = tail1.gridY - beforeTail.gridY;
-
-        pieces.push({
-            name: `Tail2`,
-            spriteFrame: this.tail2Sprite,
-            gridX: tail1.gridX + tailDx / 3,
-            gridY: tail1.gridY + tailDy / 3,
-            direction: tail1.direction,
-            order: totalDots * 10
-        });
-
-        // 4. Vẽ từ đuôi lên đầu
-        // Node add sau sẽ nằm trên node add trước
-        pieces.sort((a, b) => b.order - a.order);
-
-        for (const piece of pieces) {
-            const segmentNode = new Node(piece.name);
-
-            const sprite = segmentNode.addComponent(Sprite);
-            sprite.spriteFrame = piece.spriteFrame;
-            sprite.sizeMode = Sprite.SizeMode.CUSTOM;
-
-            const uiTransform = segmentNode.addComponent(UITransform);
-            uiTransform.setContentSize(new Size(segmentSize, segmentSize));
-
-            const posX = (piece.gridX - cols / 2) * dotDistance;
-            const posY = (piece.gridY - rows / 2) * dotDistance;
-
-            segmentNode.setPosition(new Vec3(posX, posY, 0));
-            segmentNode.setRotationFromEuler(
-                new Vec3(0, 0, this.getRotationAngle(piece.direction))
-            );
-
-            this.node.addChild(segmentNode);
-        }
-    }
-
     private getRotationAngle(dir: MoveDirection): number {
         switch (dir) {
-            case MoveDirection.UP: return 180;     // Hướng lên: xoay 180 độ để lật ngược ảnh gốc đang cắm xuống đất
-            case MoveDirection.RIGHT: return 90;   // Hướng qua phải
-            case MoveDirection.DOWN: return 0;     // Hướng xuống: giữ nguyên góc 0 của ảnh gốc
-            case MoveDirection.LEFT: return -90;   // Hướng qua trái
+            case MoveDirection.UP: return 180;     
+            case MoveDirection.RIGHT: return 90;   
+            case MoveDirection.DOWN: return 0;     
+            case MoveDirection.LEFT: return -90;   
         }
     }
-}
-
-// Hàm hỗ trợ delay nhanh gọn tương tự setTimeout trong Cocos
-function scheduleOnce(callback: () => void, delay: number) {
-    tween({}).delay(delay).call(callback).start();
 }
