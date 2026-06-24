@@ -88,7 +88,7 @@ export class SnakeController extends Component {
         if (TimeManager.Instance && TimeManager.Instance.isGamePaused) return;
 
         this.clearFromGrid();
-        
+
         // Sao lưu lại tọa độ ban đầu đề phòng trường hợp phải đi lùi về
         this.originalPathBackup = JSON.stringify(this.snakeSegments);
 
@@ -116,56 +116,52 @@ export class SnakeController extends Component {
 
     private prepareNextStep() {
         this.renderPathPrevious = JSON.parse(JSON.stringify(this.renderPathCurrent));
-
-        const head = this.snakeSegments[0];
-        // Nếu đang đi lùi, hướng di chuyển thực tế của mảng xương sẽ ngược lại
-        const nextCoords = this.getNextCoordinate(head.gridX, head.gridY, head.direction);
-        
-        for (let i = this.snakeSegments.length - 1; i > 0; i--) {
-            this.snakeSegments[i].gridX = this.snakeSegments[i - 1].gridX;
-            this.snakeSegments[i].gridY = this.snakeSegments[i - 1].gridY;
-            this.snakeSegments[i].direction = this.snakeSegments[i - 1].direction;
-        }
-        this.snakeSegments[0].gridX = nextCoords.x;
-        this.snakeSegments[0].gridY = nextCoords.y;
-
+    
+        // Đồng bộ mảng xương tiến lên nấc tiếp theo từ dữ liệu chuẩn để tránh sai số
+        this.snakeSegments = this.getSegmentsAtStep(this.currentStep + 1);
+    
         this.generateRenderPathFromSegments();
     }
 
-    // 🌟 THÊM HÀM: Chuẩn bị cho bước đi lùi (Đảo ngược RenderPath)
     private prepareNextReverseStep() {
-        this.renderPathPrevious = JSON.parse(JSON.stringify(this.renderPathCurrent));
+        // 1. Cập nhật renderPathCurrent ứng với bước currentStep hiện tại
+        this.snakeSegments = this.getSegmentsAtStep(this.currentStep);
+        this.generateRenderPathFromSegments(); // Ghi dữ liệu vào this.renderPathCurrent
+    
+        // 2. Cập nhật renderPathPrevious ứng với bước phía sau (currentStep - 1)
+        let prevSegments = this.getSegmentsAtStep(this.currentStep - 1);
         
-        // Thân logic lùi dịch chuyển ngược lại
-        for (let i = 0; i < this.snakeSegments.length - 1; i++) {
-            this.snakeSegments[i].gridX = this.snakeSegments[i + 1].gridX;
-            this.snakeSegments[i].gridY = this.snakeSegments[i + 1].gridY;
-            this.snakeSegments[i].direction = this.snakeSegments[i + 1].direction;
-        }
-        // Đốt đuôi cuối cùng sẽ lấy ô kế tiếp theo hướng ngược lại hoặc lấy từ lịch sử (ở đây làm phẳng nhanh bằng mảng đích render)
-        // Tuy nhiên, cách an toàn nhất cho đi lùi đồ họa mượt là Lerp Progress ngược từ 1 về 0.
+        let tempCurrent = this.renderPathCurrent; 
+        this.snakeSegments = prevSegments;
+        this.generateRenderPathFromSegments(); // Tạo đường đi cho bước lùi tiếp theo
+        
+        this.renderPathPrevious = this.renderPathCurrent; // Cất vào renderPathPrevious làm điểm đích lerp
+        this.renderPathCurrent = tempCurrent;            // Trả lại renderPathCurrent chuẩn cho bước này
+    
+        // 3. Đồng bộ lại mảng xương logic của con rắn khớp với vị trí hiện tại
+        this.snakeSegments = this.getSegmentsAtStep(this.currentStep);
     }
 
     protected update(dt: number) {
         if (!this.isStepTransitioning) return;
         if (TimeManager.Instance && TimeManager.Instance.isGamePaused) return;
-
+    
         if (!this.isReversing) {
             this.moveProgress += dt / this.stepDuration;
         } else {
             this.moveProgress -= dt / (this.stepDuration * 1.5); // Đi lùi về chậm hơn một chút nhìn sẽ tự nhiên hơn
         }
-
+    
         // --- XỬ LÝ KHI TIẾN HẾT 1 Ô ---
         if (!this.isReversing && this.moveProgress >= 1) {
             this.moveProgress = 0;
             this.currentStep++;
-
+    
             if (this.isEscaping) {
                 if (this.currentStep === this.totalSteps) {
                     if (TimeManager.Instance) TimeManager.Instance.addEscapedSnake();
                 }
-
+    
                 const totalEscapeSteps = this.totalSteps + this.snakeSegments.length + 2 + this.extraEscapeSteps;
                 if (this.currentStep < totalEscapeSteps) {
                     this.prepareNextStep();
@@ -184,37 +180,35 @@ export class SnakeController extends Component {
                     if (TimeManager.Instance) {
                         TimeManager.Instance.playRedAura();
                     }
-
+    
                     if (HealthManager.Instance) {
                         HealthManager.Instance.loseHeart();
                     }
-
+    
                     this.isReversing = true;
                     this.moveProgress = 1;
-
+    
                     if (TimeManager.Instance) {
                         TimeManager.Instance.hideRedAura();
                     }
                 }
             }
         }
-
+    
         // --- XỬ LÝ KHI LÙI HẾT 1 Ô ---
         if (this.isReversing && this.moveProgress <= 0) {
             this.moveProgress = 1;
             this.currentStep--;
-
+    
             if (this.currentStep > 0) {
-                // Đảo ngược mảng xương logic lùi lại 1 nấc
-                this.generateRenderPathFromSegments();
-                this.renderPathPrevious = JSON.parse(JSON.stringify(this.renderPathCurrent));
-                // Phục hồi cấu trúc ô trước đó bằng cách chạy lại một phần dịch chuyển ngược (hoặc tận dụng tính toán lerp ngược)
+                // 🔥 Gọi hàm chuẩn bị lùi mượt mà từng ô một
+                this.prepareNextReverseStep();
             } else {
                 // Đã lùi về đến tận gốc ban đầu!
                 this.isStepTransitioning = false;
                 this.isMoving = false;
                 this.isReversing = false;
-
+    
                 // Khôi phục lại chính xác 100% dữ liệu mảng ô lưới ban đầu để tránh sai lệch tích lũy
                 this.snakeSegments = JSON.parse(this.originalPathBackup);
                 this.registerToGrid();
@@ -225,7 +219,7 @@ export class SnakeController extends Component {
                 return;
             }
         }
-
+    
         this.drawSnake(this.moveProgress);
     }
 
@@ -455,5 +449,26 @@ export class SnakeController extends Component {
             case MoveDirection.DOWN: return 0;     
             case MoveDirection.LEFT: return -90;   
         }
+    }
+
+    private getSegmentsAtStep(step: number): SnakeNodeData[] {
+        // Khởi tạo lại từ bản backup ban đầu
+        let segments = JSON.parse(this.originalPathBackup) as SnakeNodeData[];
+        
+        // Giả lập chạy tiến 'step' lần để lấy đúng tọa độ của step đó
+        for (let s = 0; s < step; s++) {
+            const head = segments[0];
+            const nextCoords = this.getNextCoordinate(head.gridX, head.gridY, head.direction);
+            
+            for (let i = segments.length - 1; i > 0; i--) {
+                segments[i].gridX = segments[i - 1].gridX;
+                segments[i].gridY = segments[i - 1].gridY;
+                segments[i].direction = segments[i - 1].direction;
+            }
+            segments[0].gridX = nextCoords.x;
+            segments[0].gridY = nextCoords.y;
+        }
+        
+        return segments;
     }
 }
