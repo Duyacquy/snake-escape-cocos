@@ -44,17 +44,17 @@ export class GameZoomController extends Component {
         
         this.maxMoveDistance = (frameHeight - buttonHeight) / 2;
 
-        // LẤY THÔNG SỐ CỦA ZOOM ICON (Chính là node chứa script này)
         this.iconOriginalScale = this.node.getScale();
         this.iconSprite = this.node.getComponent(Sprite)!;
 
-        // Giữ nguyên sự kiện kéo thả cho ZoomButton
         this.zoomButton.on(Node.EventType.TOUCH_MOVE, this.onButtonDrag, this);
+        
+        this.zoomButton.on(Node.EventType.TOUCH_END, (event) => { event.propagationStopped = true; }, this);
+        this.zoomButton.on(Node.EventType.TOUCH_CANCEL, (event) => { event.propagationStopped = true; }, this);
 
-        // ĐĂNG KÝ HIỆU ỨNG NHẤN CHO ZOOM ICON
         this.node.on(Node.EventType.TOUCH_START, this.onIconPress, this);
         this.node.on(Node.EventType.TOUCH_END, this.onIconRelease, this);
-        this.node.on(Node.EventType.TOUCH_CANCEL, this.onIconRelease, this);
+        this.node.on(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this); // Tách riêng cancel ra
     }
 
     protected start() {
@@ -63,14 +63,6 @@ export class GameZoomController extends Component {
         let currentPos = this.zoomButton.getPosition();
         this.zoomButton.setPosition(new Vec3(currentPos.x, -this.maxMoveDistance, currentPos.z));
         this.updateZoom(0);
-    }
-
-    protected onDestroy() {
-        this.zoomButton.off(Node.EventType.TOUCH_MOVE, this.onButtonDrag, this);
-        
-        this.node.off(Node.EventType.TOUCH_START, this.onIconPress, this);
-        this.node.off(Node.EventType.TOUCH_END, this.onIconRelease, this);
-        this.node.off(Node.EventType.TOUCH_CANCEL, this.onIconRelease, this);
     }
 
     // HIỆU ỨNG ICON: Nhấn xuống thì thu nhỏ + tối đi chớp nhoáng
@@ -113,6 +105,21 @@ export class GameZoomController extends Component {
         }
     }
 
+    private onIconCancel() {
+        tween(this.node).stop();
+        if (this.iconSprite) tween(this.iconSprite).stop();
+
+        tween(this.node)
+            .to(0.1, { scale: this.iconOriginalScale }, { easing: 'sineOut' })
+            .start();
+
+        if (this.iconSprite) {
+            tween(this.iconSprite)
+                .to(0.1, { color: Color.WHITE })
+                .start();
+        }
+    }
+
     private toggleZoomFrame() {
         this.isFrameVisible = !this.isFrameVisible;
         this.zoomFrame.active = this.isFrameVisible;
@@ -139,5 +146,14 @@ export class GameZoomController extends Component {
 
         const targetScaleValue = math.lerp(this.minScale, this.maxScale, progress);
         this.backgroundNode.setScale(new Vec3(targetScaleValue, targetScaleValue, 1));
+    }
+
+    protected onDestroy() {
+        if (this.zoomButton) {
+            this.zoomButton.targetOff(this);
+        }
+        this.node.off(Node.EventType.TOUCH_START, this.onIconPress, this);
+        this.node.off(Node.EventType.TOUCH_END, this.onIconRelease, this);
+        this.node.off(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this);
     }
 }
