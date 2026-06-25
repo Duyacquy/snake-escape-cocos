@@ -35,6 +35,23 @@ export class GameManager extends Component {
     @property({ displayName: "Khoảng cách Sprite (1/2 ô lưới)" })
     public spacing: number = 20; 
 
+    private ignoredDots: { x: number, y: number }[] = [
+        { x: 11, y: 19 },
+        { x: 9, y: 15 },
+        { x: 1, y: 8 },
+        { x: 4, y: 5 },
+        { x: 6, y: 9 },
+        { x: 7, y: 2 },
+        { x: 7, y: 7 },
+        { x: 10, y: 7 },
+        { x: 10, y: 0 },
+        { x: 2, y: 16 },
+        { x: 10, y: 22 },
+        { x: 4, y: 19 },
+        { x: 8, y: 15 },
+        { x: 14, y: 13 },
+    ];
+
     protected start() {
         this.generateGridVisuals();
         this.spawnLevel();
@@ -73,9 +90,13 @@ export class GameManager extends Component {
 
         for (let x = 0; x < cols; x++) {
             for (let y = 0; y < rows; y++) {
+                const isIgnored = this.ignoredDots.some(dot => dot.x === x && dot.y === y);
+                if (isIgnored) {
+                    continue;
+                }
+
                 const dot = instantiate(this.dotPrefab);
                 
-                // 🔥 SỬA TẠI ĐÂY: Trừ đi (cols - 1) / 2 thay vì cols / 2 để phân bổ tọa độ đối xứng qua trục 0
                 const posX = (x - (cols - 1) / 2) * dotDistance;
                 const posY = (y - (rows - 1) / 2) * dotDistance;
                 

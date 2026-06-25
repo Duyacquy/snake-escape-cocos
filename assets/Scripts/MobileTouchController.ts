@@ -11,7 +11,7 @@ export class MobileTouchController extends Component {
     private targetMapNode: Node = null!; 
 
     @property({ displayName: "Tốc độ Zoom bằng ngón tay" })
-    private zoomSensitivity: number = 1.0;
+    private zoomSensitivity: number = 0.2;
 
     @property({ displayName: "Tỉ lệ Zoom nhỏ nhất (Dự phòng)" })
     private minScale: number = 0.5;
@@ -20,7 +20,7 @@ export class MobileTouchController extends Component {
     private maxScale: number = 2.0;
 
     @property({ displayName: "Tốc độ vuốt di chuyển map" })
-    private panSpeed: number = 1.0;
+    private panSpeed: number = 0.55;
 
     protected onLoad() {
         this.node.on(Node.EventType.TOUCH_START, this.onTouchStart, this);
@@ -72,11 +72,9 @@ export class MobileTouchController extends Component {
 
             if (previousDistance === 0) return;
 
-            let scaleFactor = currentDistance / previousDistance;
+            let rawRatio = currentDistance / previousDistance;
             
-            if (this.zoomSensitivity !== 1.0) {
-                scaleFactor = 1.0 + (scaleFactor - 1.0) * this.zoomSensitivity;
-            }
+            let scaleFactor = 1.0 + (rawRatio - 1.0) * this.zoomSensitivity;
 
             // ========================================================
             // 🔥 ĐỒNG BỘ MỐC GIỚI HẠN TỪ THANH ZOOM SLIDER FRAME
