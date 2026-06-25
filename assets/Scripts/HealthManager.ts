@@ -1,4 +1,6 @@
 import { _decorator, Component, Node, Vec3, tween, UIOpacity } from 'cc';
+import { LossPanelManager, LossReason } from './LossPanelManager';
+import { TimeManager } from './TimeManager';
 const { ccclass, property } = _decorator;
 
 @ccclass('HealthManager')
@@ -51,13 +53,13 @@ export class HealthManager extends Component {
 
             tween(heart)
                 .delay(delayTime)
-                .to(0.4, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' })
+                .to(0.5, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' })
                 .start();
 
             // Tween làm rõ dần (opacity từ 0 -> 255)
             tween(uiOpacity)
                 .delay(delayTime)
-                .to(0.3, { opacity: 255 }, { easing: 'sineOut' })
+                .to(0.4, { opacity: 255 }, { easing: 'sineOut' })
                 .start();
         }
     }
@@ -81,23 +83,31 @@ export class HealthManager extends Component {
         if (uiOpacity) tween(uiOpacity).stop();
 
         tween(heart)
-            .to(0.35, { scale: new Vec3(1.8, 1.8, 1) }, { easing: 'sineOut' })
+            .to(0.5, { scale: new Vec3(1.8, 1.8, 1) }, { easing: 'sineOut' })
             .start();
 
         if (uiOpacity) {
             tween(uiOpacity)
-                .to(0.3, { opacity: 0 }, { easing: 'sineIn' })
+                .to(0.5, { opacity: 0 }, { easing: 'sineIn' })
                 .start();
         }
 
         this.currentLives--;
 
         if (this.currentLives <= 0) {
-            this.onGameOver();
+            if (TimeManager.Instance) {
+                TimeManager.Instance.forceStopTimerOnGameOver();
+            }
+
+            this.scheduleOnce(() => {
+                this.onGameOver();
+            }, 0.8);
         }
     }
 
     private onGameOver() {
-        console.log("💀 [HealthManager]: HẾT MẠNG! Hiển thị Lose Panel tại đây.");
+        if (LossPanelManager.Instance) {
+            LossPanelManager.Instance.showLossPanel(LossReason.OUT_OF_LIVES);
+        }
     }
 }

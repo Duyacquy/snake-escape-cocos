@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Prefab, instantiate } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, Vec3, tween } from 'cc';
 import { GridManager } from './GridManager';
 import { SnakeController } from './SnakeController';
 import { SnakeColor, MoveDirection } from './SnakeCommon';
@@ -38,6 +38,29 @@ export class GameManager extends Component {
     protected start() {
         this.generateGridVisuals();
         this.spawnLevel();
+        this.playMapEntryAnimation();
+    }
+
+    private playMapEntryAnimation() {
+        const startScale = new Vec3(0.05, 0.05, 1); 
+        const targetScale = new Vec3(1, 1, 1);    
+        const duration = 1.2;                    
+
+        // Phóng to lưới nền với hiệu ứng đàn hồi nảy nhẹ (backOut)
+        if (this.gridContainer) {
+            this.gridContainer.setScale(startScale);
+            tween(this.gridContainer)
+                .to(duration, { scale: targetScale }, { easing: 'backOut' })
+                .start();
+        }
+
+        // Phóng to toàn bộ các con rắn đồng bộ khớp vị trí
+        if (this.snakeContainer) {
+            this.snakeContainer.setScale(startScale);
+            tween(this.snakeContainer)
+                .to(duration, { scale: targetScale }, { easing: 'backOut' })
+                .start();
+        }
     }
 
     // Tự động sinh ma trận các dấu chấm tròn trực quan lên màn hình
@@ -51,9 +74,10 @@ export class GameManager extends Component {
         for (let x = 0; x < cols; x++) {
             for (let y = 0; y < rows; y++) {
                 const dot = instantiate(this.dotPrefab);
-                // Căn giữa ma trận lưới xung quanh tâm (0,0) của Container
-                const posX = (x - cols / 2) * dotDistance;
-                const posY = (y - rows / 2) * dotDistance;
+                
+                // 🔥 SỬA TẠI ĐÂY: Trừ đi (cols - 1) / 2 thay vì cols / 2 để phân bổ tọa độ đối xứng qua trục 0
+                const posX = (x - (cols - 1) / 2) * dotDistance;
+                const posY = (y - (rows - 1) / 2) * dotDistance;
                 
                 dot.setPosition(posX, posY, 0);
                 this.gridContainer.addChild(dot);

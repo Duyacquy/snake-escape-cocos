@@ -3,6 +3,7 @@ import { SnakeColor, SnakeNodeData, MoveDirection } from './SnakeCommon';
 import { GridManager } from './GridManager';
 import { TimeManager } from './TimeManager';
 import { HealthManager } from './HealthManager';
+import { AudioManager } from './AudioManager';
 
 const { ccclass, property } = _decorator;
 
@@ -107,7 +108,16 @@ export class SnakeController extends Component {
 
     private startMoving() {
         if (this.isMoving) return;
-        if (TimeManager.Instance && TimeManager.Instance.isGamePaused) return;
+
+        if (TimeManager.Instance) {
+            if (TimeManager.Instance.isGamePaused || TimeManager.Instance.isGameOver) {
+                return; 
+            }
+        }
+
+        if (AudioManager.Instance) {
+            AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeTap);
+        }
 
         this.clearFromGrid();
 
@@ -134,6 +144,10 @@ export class SnakeController extends Component {
                 TimeManager.Instance.addEscapedSnake(); 
             }
             this.changeFaceAnimation('happy', true);
+        }
+
+        if (AudioManager.Instance) {
+            AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeMove);
         }
 
         this.isReversing = false; 
@@ -410,15 +424,18 @@ export class SnakeController extends Component {
 
         for (let i = 0; i < totalDots; i++) {
             const curr = this.snakeSegments[i];
-            const posX = (curr.gridX - cols / 2) * dotDistance;
-            const posY = (curr.gridY - rows / 2) * dotDistance;
+            
+            // 🔥 SỬA TẠI ĐÂY: Đổi từ cols / 2 thành (cols - 1) / 2
+            const posX = (curr.gridX - (cols - 1) / 2) * dotDistance;
+            const posY = (curr.gridY - (rows - 1) / 2) * dotDistance;
 
             this.renderPathCurrent.push({ x: posX, y: posY, dir: curr.direction });
 
             if (i < totalDots - 1) {
                 const next = this.snakeSegments[i + 1];
-                const nextX = (next.gridX - cols / 2) * dotDistance;
-                const nextY = (next.gridY - rows / 2) * dotDistance;
+                
+                const nextX = (next.gridX - (cols - 1) / 2) * dotDistance;
+                const nextY = (next.gridY - (rows - 1) / 2) * dotDistance;
 
                 const dx = nextX - posX;
                 const dy = nextY - posY;

@@ -1,4 +1,8 @@
-import { _decorator, Component, Node, Label, director, Vec3, tween, math } from 'cc';
+import { _decorator, Component, Node, Label, director, Vec3, tween, math, Color, Widget } from 'cc'; // 🔥 Đã thêm Color vào import
+import { LossPanelManager, LossReason } from './LossPanelManager';
+import { AudioManager } from './AudioManager';
+import { WinPanelManager } from './WinPanelManager';
+
 const { ccclass, property } = _decorator;
 
 enum AuraState {
@@ -14,6 +18,12 @@ export class TimeManager extends Component {
 
     @property(Label)
     private playtimeLabel: Label = null!;
+
+    @property(Node)
+    private playtimeIcon: Node = null!;
+
+    @property(Node)
+    private playtimeContainer: Node = null!;
 
     @property(Node)
     private pauseButton: Node = null!;
@@ -33,6 +43,12 @@ export class TimeManager extends Component {
     @property({ displayName: "Tỉ lệ phóng to chữ"})
     private zoomScale: number = 1.25;
 
+    @property({ type: Color, displayName: "Màu chữ khi sắp hết giờ" })
+    private dangerColor: Color = new Color(255, 120, 120);
+
+    @property({ displayName: "Tỉ lệ phóng đại nhịp giây", min: 1.0, max: 2.0 })
+    private pulseZoomScale: number = 1.2;
+
     @property({ type: Node, displayName: "Hiệu ứng Aura Đỏ" })
     private redAuraNode: Node = null!;
 
@@ -49,10 +65,18 @@ export class TimeManager extends Component {
     private replayOriginalScale: Vec3 = new Vec3(1, 1, 1);
     private iconSnakeOriginalScale: Vec3 = new Vec3(1, 1, 1);
 
+    private labelOriginalScale: Vec3 = new Vec3(1, 1, 1);
+    private iconOriginalScale: Vec3 = new Vec3(1, 1, 1);
+    private containerOriginalPos: Vec3 = new Vec3(0, 0, 0);
+    private originalLabelColor: Color = Color.WHITE;
+    private lastSecondsLeft: number = -1;
+
     private auraOpacityTarget: number = 0;
     private auraCurrentOpacity: number = 0;
     private readonly AURA_FADE_SPEED: number = 2;
     private auraHoldTimer: number = 0;
+
+    public isGameOver: boolean = false;
 
     public get isGamePaused(): boolean {
         return this._isPaused;
@@ -65,6 +89,14 @@ export class TimeManager extends Component {
         if (this.pauseButton) this.pauseOriginalScale = this.pauseButton.getScale();
         if (this.replayButton) this.replayOriginalScale = this.replayButton.getScale();
         if (this.iconSnakeNode) this.iconSnakeOriginalScale = this.iconSnakeNode.getScale();
+
+        // 🔥 LƯU LẠI THÔNG SỐ GỐC CỦA CỤM THỜI GIAN
+        if (this.playtimeLabel) {
+            this.labelOriginalScale = this.playtimeLabel.node.getScale();
+            this.originalLabelColor = this.playtimeLabel.color.clone(); // Copy màu chữ ban đầu (trắng/xanh...)
+        }
+        if (this.playtimeIcon) this.iconOriginalScale = this.playtimeIcon.getScale();
+        if (this.playtimeContainer) this.containerOriginalPos = this.playtimeContainer.getPosition();
 
         if (this.redAuraNode) {
             this.redAuraNode.active = false;
@@ -93,15 +125,10 @@ export class TimeManager extends Component {
         const uiOpacity = this.redAuraNode.getComponent('cc.UIOpacity') || this.redAuraNode.addComponent('cc.UIOpacity' as any);
         if (!uiOpacity) return;
 
-        // Bật active ngay lập tức
         this.redAuraNode.active = true;
-        
-        // Chớp sáng rực lên mức mong muốn ngay từ khung hình đầu tiên (ví dụ: 180/255 để nhìn xuyên ma trận lưới)
         this.auraCurrentOpacity = 255;
         (uiOpacity as any).opacity = this.auraCurrentOpacity;
-        
         this.auraHoldTimer = 0.15;
-
         this.auraOpacityTarget = 255;
     }
 
@@ -113,10 +140,8 @@ export class TimeManager extends Component {
         if (this.redAuraNode && this.redAuraNode.active) {
             const uiOpacity = this.redAuraNode.getComponent('cc.UIOpacity');
             if (uiOpacity) {
-                
                 if (this.auraHoldTimer > 0) {
                     this.auraHoldTimer -= dt;
-                    
                     this.auraCurrentOpacity = 255;
                     (uiOpacity as any).opacity = 255;
                 } else {
@@ -136,6 +161,26 @@ export class TimeManager extends Component {
 
         if (this.currentTime > 0) {
             this.currentTime -= dt;
+
+            let secondsLeft = Math.floor(this.currentTime);
+            
+            if (secondsLeft <= 15 && this.currentTime > 0) {
+                
+                // Đổi chữ sang màu cấu hình từ Inspector thay vì ép chết Color.RED
+                if (this.playtimeLabel && this.playtimeLabel.color !== this.dangerColor) {
+                    this.playtimeLabel.color = this.dangerColor;
+                }
+
+                if (secondsLeft !== this.lastSecondsLeft) {
+                    this.lastSecondsLeft = secondsLeft;
+                    this.playTickPulseAnimation();
+
+                    if (AudioManager.Instance) {
+                        AudioManager.Instance.playSFX(AudioManager.Instance.seTickTock);
+                    }
+                }
+            }
+
             if (this.currentTime <= 0) {
                 this.currentTime = 0;
                 this._isTimerStarted = false;
@@ -145,6 +190,60 @@ export class TimeManager extends Component {
         }
     }
 
+    private playTickPulseAnimation() {
+        if (this.playtimeLabel) {
+            tween(this.playtimeLabel.node)
+                .stop()
+                .to(0.12, { scale: new Vec3(this.labelOriginalScale.x * this.pulseZoomScale, this.labelOriginalScale.y * this.pulseZoomScale, 1) }, { easing: 'sineOut' })
+                .to(0.15, { scale: this.labelOriginalScale }, { easing: 'sineIn' })
+                .start();
+        }
+
+        if (this.playtimeIcon) {
+            tween(this.playtimeIcon)
+                .stop()
+                .to(0.12, { scale: new Vec3(this.iconOriginalScale.x * this.pulseZoomScale, this.iconOriginalScale.y * this.pulseZoomScale, 1) }, { easing: 'sineOut' })
+                .to(0.15, { scale: this.iconOriginalScale }, { easing: 'sineIn' })
+                .start();
+        }
+    }
+
+    private playContainerShakeAnimation() {
+        if (!this.playtimeContainer) return;
+
+        const widget = this.playtimeContainer.getComponent(Widget);
+        if (widget) {
+            widget.enabled = false;
+        }
+
+        tween(this.playtimeContainer).stop();
+        this.playtimeContainer.setPosition(this.containerOriginalPos);
+
+        const shakeIntensity = 6; 
+        const shakeSpeed = 0.03;  
+        
+        const cycles = 16; 
+
+        let shakeTween = tween(this.playtimeContainer);
+
+        for (let i = 0; i < cycles; i++) {
+            const currentIntensity = shakeIntensity * (1 - i / cycles); 
+
+            shakeTween
+                .to(shakeSpeed, { position: new Vec3(this.containerOriginalPos.x - currentIntensity, this.containerOriginalPos.y + currentIntensity, 0) })
+                .to(shakeSpeed, { position: new Vec3(this.containerOriginalPos.x + currentIntensity, this.containerOriginalPos.y - currentIntensity, 0) })
+                .to(shakeSpeed, { position: new Vec3(this.containerOriginalPos.x - currentIntensity * 0.7, this.containerOriginalPos.y - currentIntensity * 0.6, 0) })
+                .to(shakeSpeed, { position: new Vec3(this.containerOriginalPos.x + currentIntensity * 0.7, this.containerOriginalPos.y + currentIntensity * 0.6, 0) });
+        }
+
+        shakeTween
+            .to(shakeSpeed, { position: this.containerOriginalPos })
+            .call(() => {
+                if (widget) widget.enabled = true;
+            })
+            .start();
+    }
+
     private onBtnPress(btnNode: Node, originalScale: Vec3) {
         tween(btnNode).stop();
         const targetScale = new Vec3(originalScale.x * this.pressedScaleFactor, originalScale.y * this.pressedScaleFactor, 1);
@@ -152,6 +251,10 @@ export class TimeManager extends Component {
     }
 
     private onBtnRelease(btnNode: Node, originalScale: Vec3, callback: Function) {
+        if (AudioManager.Instance) {
+            AudioManager.Instance.playSFX(AudioManager.Instance.seClick);
+        }
+
         tween(btnNode).stop();
         tween(btnNode).to(0.08, { scale: originalScale }, { easing: 'sineOut' }).call(() => { callback.call(this); }).start();
     }
@@ -165,9 +268,24 @@ export class TimeManager extends Component {
         this.currentTime = this.totalTime;
         this._isTimerStarted = false;
         this._isPaused = false;
+        this.isGameOver = false;
         this.escapedSnakes = 0;
+        this.lastSecondsLeft = -1;
+
+        if (this.playtimeLabel) {
+            this.playtimeLabel.color = this.originalLabelColor;
+            this.playtimeLabel.node.setScale(this.labelOriginalScale);
+        }
+        if (this.playtimeIcon) this.playtimeIcon.setScale(this.iconOriginalScale);
+        if (this.playtimeContainer) this.playtimeContainer.setPosition(this.containerOriginalPos);
+
         this.updateIconSnakeDisplay();
         this.updateLabelDisplay();
+    }
+
+    public forceStopTimerOnGameOver() {
+        this._isTimerStarted = false; 
+        this.isGameOver = true;
     }
 
     private updateIconSnakeDisplay() {
@@ -195,7 +313,13 @@ export class TimeManager extends Component {
     }
 
     private onGameWin() {
-        console.log("🎉 [TimeManager]: CHIẾN THẮNG! Bạn đã giải thoát toàn bộ số rắn trên sàn. Hiện Win Panel tại đây!");
+        this.forceStopTimerOnGameOver();
+
+        this.scheduleOnce(() => {
+            if (WinPanelManager.Instance) {
+                WinPanelManager.Instance.showWinPanel();
+            }
+        }, 0.8);
     }
 
     public startTimer() {
@@ -217,7 +341,18 @@ export class TimeManager extends Component {
     }
 
     private onTimeOut() {
-        console.log("🚫 [TimeManager]: HẾT GIỜ! Hiển thị bảng Result ở đây.");
+        this.forceStopTimerOnGameOver();
+        this.playContainerShakeAnimation();
+
+        if (AudioManager.Instance) {
+            AudioManager.Instance.playSFX(AudioManager.Instance.seTimeout);
+        }
+
+        this.scheduleOnce(() => {
+            if (LossPanelManager.Instance) {
+                LossPanelManager.Instance.showLossPanel(LossReason.OUT_OF_TIME);
+            }
+        }, 1);
     }
 
     private onPauseClicked() {
@@ -234,7 +369,6 @@ export class TimeManager extends Component {
     private onReplayClicked() {
         console.log("🔄 [Game State]: Bấm chơi lại màn! Đang tải lại màn chơi...");
         this.resetTimer();
-        
         director.loadScene("main");
     }
 }

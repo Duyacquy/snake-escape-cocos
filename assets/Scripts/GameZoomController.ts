@@ -3,6 +3,7 @@ const { ccclass, property } = _decorator;
 
 @ccclass('GameZoomController')
 export class GameZoomController extends Component {
+    public static Instance: GameZoomController = null!;
 
     @property(Node)
     private zoomFrame: Node = null!; 
@@ -11,7 +12,7 @@ export class GameZoomController extends Component {
     private zoomButton: Node = null!;
 
     @property(Label)
-    private zoomLabel: Node = null! as any; // Tạm thời để kiểu Node hoặc Label tùy bạn, giữ nguyên logic cũ của bạn
+    private zoomLabel: Node = null! as any; 
 
     @property(Node)
     private backgroundNode: Node = null!; 
@@ -31,6 +32,8 @@ export class GameZoomController extends Component {
     @property({ group: { name: 'Hiệu ứng Nhấn Icon' }, displayName: "Màu khi nhấn" })
     private pressedColor: Color = new Color(180, 180, 180, 255);
     
+    public get MinScale(): number { return this.minScale; }
+    public get MaxScale(): number { return this.maxScale; }
 
     private isFrameVisible: boolean = false;
     private maxMoveDistance: number = 0;
@@ -39,6 +42,9 @@ export class GameZoomController extends Component {
     private iconSprite: Sprite = null!;
 
     protected onLoad() {
+        // Khởi tạo Instance Singleton
+        GameZoomController.Instance = this;
+
         const frameHeight = this.zoomFrame.getComponent(UITransform)!.height;
         const buttonHeight = this.zoomButton.getComponent(UITransform)!.height;
         
@@ -54,7 +60,7 @@ export class GameZoomController extends Component {
 
         this.node.on(Node.EventType.TOUCH_START, this.onIconPress, this);
         this.node.on(Node.EventType.TOUCH_END, this.onIconRelease, this);
-        this.node.on(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this); // Tách riêng cancel ra
+        this.node.on(Node.EventType.TOUCH_CANCEL, this.onIconCancel, this); 
     }
 
     protected start() {
@@ -65,7 +71,33 @@ export class GameZoomController extends Component {
         this.updateZoom(0);
     }
 
-    // HIỆU ỨNG ICON: Nhấn xuống thì thu nhỏ + tối đi chớp nhoáng
+    /**
+     * 🔥 HÀM ĐỒNG BỘ CÔNG KHAI: Gọi từ MobileTouchController khi người chơi zoom bằng 2 ngón tay.
+     * Hàm này chỉ di chuyển nút kéo UI và sửa chữ phần trăm hiển thị, không tác động ngược lại scale của Map.
+     */
+    public syncZoomFromScale(currentScale: number) {
+        if (this.maxMoveDistance <= 0) return;
+
+        // 1. Tính toán ngược tỉ lệ tiến trình từ scale hiện tại (Inverse Lerp)
+        let progress = (currentScale - this.minScale) / (this.maxScale - this.minScale);
+        progress = math.clamp01(progress);
+
+        // 2. Đồng bộ số hiển thị của phần trăm chữ Zoom Label
+        const percent = Math.round(progress * 100);
+        let labelComp = this.zoomLabel as any;
+        if (this.zoomLabel instanceof Label) {
+            this.zoomLabel.string = `${percent}%`;
+        } else if (labelComp && labelComp.getComponent) {
+            let actualLabel = labelComp.getComponent(Label);
+            if (actualLabel) actualLabel.string = `${percent}%`;
+        }
+
+        // 3. Đồng bộ vị trí Y của nút kéo Slider UI khớp chuẩn xác theo progress
+        let currentPos = this.zoomButton.getPosition();
+        let targetY = -this.maxMoveDistance + (progress * this.maxMoveDistance * 2);
+        this.zoomButton.setPosition(new Vec3(currentPos.x, targetY, currentPos.z));
+    }
+
     private onIconPress() {
         tween(this.node).stop();
         if (this.iconSprite) tween(this.iconSprite).stop();
@@ -76,14 +108,10 @@ export class GameZoomController extends Component {
             1
         );
 
-        tween(this.node)
-            .to(0.05, { scale: targetScale }, { easing: 'sineOut' })
-            .start();
+        tween(this.node).to(0.05, { scale: targetScale }, { easing: 'sineOut' }).start();
 
         if (this.iconSprite) {
-            tween(this.iconSprite)
-                .to(0.05, { color: this.pressedColor })
-                .start();
+            tween(this.iconSprite).to(0.05, { color: this.pressedColor }).start();
         }
     }
 
@@ -93,15 +121,11 @@ export class GameZoomController extends Component {
 
         tween(this.node)
             .to(0.1, { scale: this.iconOriginalScale }, { easing: 'sineOut' })
-            .call(() => {
-                this.toggleZoomFrame();
-            })
+            .call(() => { this.toggleZoomFrame(); })
             .start();
 
         if (this.iconSprite) {
-            tween(this.iconSprite)
-                .to(0.1, { color: Color.WHITE })
-                .start();
+            tween(this.iconSprite).to(0.1, { color: Color.WHITE }).start();
         }
     }
 
@@ -109,14 +133,10 @@ export class GameZoomController extends Component {
         tween(this.node).stop();
         if (this.iconSprite) tween(this.iconSprite).stop();
 
-        tween(this.node)
-            .to(0.1, { scale: this.iconOriginalScale }, { easing: 'sineOut' })
-            .start();
+        tween(this.node).to(0.1, { scale: this.iconOriginalScale }, { easing: 'sineOut' }).start();
 
         if (this.iconSprite) {
-            tween(this.iconSprite)
-                .to(0.1, { color: Color.WHITE })
-                .start();
+            tween(this.iconSprite).to(0.1, { color: Color.WHITE }).start();
         }
     }
 
@@ -140,8 +160,12 @@ export class GameZoomController extends Component {
 
     private updateZoom(progress: number) {
         const percent = Math.round(progress * 100);
+        let labelComp = this.zoomLabel as any;
         if (this.zoomLabel instanceof Label) {
             this.zoomLabel.string = `${percent}%`;
+        } else if (labelComp && labelComp.getComponent) {
+            let actualLabel = labelComp.getComponent(Label);
+            if (actualLabel) actualLabel.string = `${percent}%`;
         }
 
         const targetScaleValue = math.lerp(this.minScale, this.maxScale, progress);
