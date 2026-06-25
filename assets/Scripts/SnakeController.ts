@@ -115,10 +115,6 @@ export class SnakeController extends Component {
             }
         }
 
-        if (AudioManager.Instance) {
-            AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeTap);
-        }
-
         this.clearFromGrid();
 
         // Sao lưu lại tọa độ ban đầu đề phòng trường hợp phải đi lùi về
@@ -225,6 +221,10 @@ export class SnakeController extends Component {
                 this.isStunned = true;
                 this.stunTimer = this.STUN_DURATION;
 
+                if (AudioManager.Instance) {
+                    AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeTap);
+                }
+
                 // 2. Kích hoạt hiệu ứng phồng to giật mình cho con rắn nạn nhân tại chỗ
                 this.triggerVictimAnimation();
                 
@@ -280,6 +280,10 @@ export class SnakeController extends Component {
                         this.changeFaceAnimation('dizzy', true);
                         this.isStunned = true;
                         this.stunTimer = this.STUN_DURATION;
+
+                        if (AudioManager.Instance) {
+                            AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeTap);
+                        }
 
                         // 2. Kích hoạt hiệu ứng phồng to giật mình cho con rắn nạn nhân tại chỗ
                         this.triggerVictimAnimation();
@@ -586,7 +590,24 @@ export class SnakeController extends Component {
         segmentNode.setPosition(new Vec3(x, y, 0));
         segmentNode.setRotationFromEuler(new Vec3(0, 0, this.getRotationAngle(dir)));
 
-        segmentNode.on(Node.EventType.TOUCH_END, this.onSnakeClicked, this);
+        // ========================================================
+        // 🔥 CẢI TIẾN: TẠO VÙNG CHẠM TÀNG HÌNH (INVISIBLE HITBOX)
+        // ========================================================
+        const hitboxNode = new Node('Hitbox');
+        hitboxNode.layer = segmentNode.layer; // Đảm bảo đồng bộ layer UI_2D để Camera quét được touch
+
+        const hitboxTransform = hitboxNode.addComponent(UITransform);
+        
+        // Tăng kích thước vùng bấm lên 1.8 lần so với đốt rắn thật (tay to vuốt vẫn dính)
+        const expandedSize = size * 1.5; 
+        hitboxTransform.setContentSize(new Size(expandedSize, expandedSize));
+
+        // Đăng ký sự kiện TOUCH_END vào node tàng hình này
+        hitboxNode.on(Node.EventType.TOUCH_END, this.onSnakeClicked, this);
+        
+        // Thêm vùng chạm vào làm con của đốt rắn để nó tự động đi theo đốt rắn
+        segmentNode.addChild(hitboxNode);
+
         this.node.addChild(segmentNode);
     }
 

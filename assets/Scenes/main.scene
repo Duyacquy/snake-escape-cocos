@@ -2583,7 +2583,7 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -152.4850082397461,
+      "x": -140.60101318359375,
       "y": 0,
       "z": 0
     },
@@ -2622,7 +2622,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 150.0299835205078,
+      "width": 133.7979736328125,
       "height": 58.4
     },
     "_anchorPoint": {
@@ -2655,8 +2655,8 @@
     "_string": "0/52",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
-    "_actualFontSize": 70,
-    "_fontSize": 70,
+    "_actualFontSize": 62,
+    "_fontSize": 62,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
     "_overflow": 0,
@@ -2709,7 +2709,7 @@
     "__prefab": null,
     "_alignFlags": 10,
     "_target": null,
-    "_left": -170,
+    "_left": -150,
     "_right": 0,
     "_top": 0,
     "_bottom": 0,
@@ -3081,7 +3081,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 166.9999542236328,
+      "width": 164.1839599609375,
       "height": 56.4
     },
     "_anchorPoint": {
@@ -3114,14 +3114,14 @@
     "_string": "Level 5",
     "_horizontalAlign": 1,
     "_verticalAlign": 1,
-    "_actualFontSize": 46,
-    "_fontSize": 46,
+    "_actualFontSize": 52,
+    "_fontSize": 52,
     "_fontFamily": "Arial",
     "_lineHeight": 40,
     "_overflow": 0,
     "_enableWrapText": true,
     "_font": {
-      "__uuid__": "bcad1621-08b7-486e-aa02-b5686b8f9834",
+      "__uuid__": "fb8552d1-83d2-4297-8ac6-80337f10b112",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,
@@ -4726,7 +4726,7 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 88.55499267578125,
+      "width": 76.83999633789062,
       "height": 56.4
     },
     "_anchorPoint": {
@@ -4766,7 +4766,7 @@
     "_overflow": 0,
     "_enableWrapText": true,
     "_font": {
-      "__uuid__": "bcad1621-08b7-486e-aa02-b5686b8f9834",
+      "__uuid__": "fb8552d1-83d2-4297-8ac6-80337f10b112",
       "__expectedType__": "cc.TTFFont"
     },
     "_isSystemFontUsed": false,
@@ -4779,13 +4779,13 @@
     "_enableOutline": true,
     "_outlineColor": {
       "__type__": "cc.Color",
-      "r": 0,
-      "g": 0,
-      "b": 0,
+      "r": 82,
+      "g": 20,
+      "b": 20,
       "a": 255
     },
     "_outlineWidth": 3,
-    "_enableShadow": true,
+    "_enableShadow": false,
     "_shadowColor": {
       "__type__": "cc.Color",
       "r": 0,
