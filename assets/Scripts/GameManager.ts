@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Prefab, instantiate, Vec3, tween } from 'cc';
+import { _decorator, Component, Node, Prefab, instantiate, Vec3, tween, view, UITransform } from 'cc';
 import { GridManager } from './GridManager';
 import { SnakeController } from './SnakeController';
 import { SnakeColor, MoveDirection } from './SnakeCommon';
@@ -10,6 +10,12 @@ export class GameManager extends Component {
 
     @property(Prefab) 
     private dotPrefab: Prefab = null!;
+
+    @property(Node)
+    private timerNode: Node = null!;
+
+    @property(Node)
+    private zoomIconNode: Node = null!;
 
     @property({ type: Prefab, group: { name: 'Cấu hình Rắn theo Màu' }, displayName: "Rắn Xanh Dương (Blue)" }) 
     private snakeBluePrefab: Prefab = null!;
@@ -37,7 +43,6 @@ export class GameManager extends Component {
 
     private ignoredDots: { x: number, y: number }[] = [
         { x: 11, y: 19 },
-        { x: 9, y: 15 },
         { x: 1, y: 8 },
         { x: 4, y: 5 },
         { x: 6, y: 9 },
@@ -58,21 +63,142 @@ export class GameManager extends Component {
         this.playMapEntryAnimation();
     }
 
-    private playMapEntryAnimation() {
-        const startScale = new Vec3(0.05, 0.05, 1); 
-        const targetScale = new Vec3(1, 1, 1);    
-        const duration = 1.2;                    
+    // private playMapEntryAnimation() {
+    //     const duration = 1.2; 
+        
+    //     // Lấy UITransform của GameManager để tính tọa độ
+    //     const gameManagerTransform = this.node.getComponent(UITransform) || this.gridContainer.parent!.getComponent(UITransform);
+    //     if (!gameManagerTransform) return;
 
-        // Phóng to lưới nền với hiệu ứng đàn hồi nảy nhẹ (backOut)
+    //     const paddingTopFromTimer = 50; 
+
+    //     let finalY = 0;
+    //     let finalScale = 1.0;
+
+    //     if (this.timerNode) {
+    //         // 1. Lấy vị trí đáy của Timer trong không gian của GameManager
+    //         const timerWorldPos = this.timerNode.getWorldPosition();
+    //         const timerLocalPos = gameManagerTransform.convertToNodeSpaceAR(timerWorldPos);
+    //         const timerTransform = this.timerNode.getComponent(UITransform);
+    //         const timerHeight = timerTransform ? timerTransform.height : 80;
+            
+    //         const timerBottomY = timerLocalPos.y - (timerHeight / 2);
+
+    //         // 2. Xác định vị trí đáy màn hình thực tế
+    //         const canvasNode = this.node.parent!; 
+    //         const canvasTransform = canvasNode.getComponent(UITransform)!;
+    //         const screenHeight = view.getVisibleSize().height;
+            
+    //         const screenBottomWorldPos = canvasTransform.convertToWorldSpaceAR(new Vec3(0, -screenHeight / 2, 0));
+    //         const screenBottomLocalPos = gameManagerTransform.convertToNodeSpaceAR(screenBottomWorldPos);
+            
+    //         const screenBottomY = screenBottomLocalPos.y;
+    //         const safeBottomMargin = 60; 
+
+    //         // 3. Đo đạc kích thước thực tế của bàn cờ rắn
+    //         const dotDistance = this.spacing * 2;
+    //         const mapHeight = GridManager.Instance.rows * dotDistance;
+
+    //         // Khoảng không gian trống tối đa cho phép
+    //         const availableHeight = timerBottomY - (screenBottomY + safeBottomMargin) - paddingTopFromTimer;
+
+    //         if (mapHeight > availableHeight) {
+    //             finalScale = availableHeight / mapHeight;
+    //         } 
+
+    //         // ========================================================
+    //         // 🔥 CÔNG THỨC MỚI: ÉP ĐỈNH MAP LUÔN CÁCH TIMER MỘT KHOẢNG CỐ ĐỊNH
+    //         // Tọa độ tâm Y = (Đáy Timer - Khoảng cách đệm) - (Nửa chiều cao của Map đã nhân tỉ lệ scale)
+    //         // ========================================================
+    //         finalY = (timerBottomY - paddingTopFromTimer) - (mapHeight * finalScale) / 2;
+    //     }
+
+    //     // Tạo vector tỉ lệ đích và tỉ lệ xuất phát động
+    //     const targetScale = new Vec3(finalScale, finalScale, 1);  
+    //     const startScale = new Vec3(0.05 * finalScale, 0.05 * finalScale, 1); 
+
+    //     // Áp dụng vị trí và chạy animation cho Lưới nền
+    //     if (this.gridContainer) {
+    //         this.gridContainer.setPosition(new Vec3(0, finalY, 0));
+    //         this.gridContainer.setScale(startScale);
+    //         tween(this.gridContainer)
+    //             .to(duration, { scale: targetScale }, { easing: 'backOut' })
+    //             .start();
+    //     }
+
+    //     // Áp dụng vị trí và chạy animation đồng bộ cho Rắn
+    //     if (this.snakeContainer) {
+    //         this.snakeContainer.setPosition(new Vec3(0, finalY, 0));
+    //         this.snakeContainer.setScale(startScale);
+    //         tween(this.snakeContainer)
+    //             .to(duration, { scale: targetScale }, { easing: 'backOut' })
+    //             .start();
+    //     }
+    // }
+
+    private playMapEntryAnimation() {
+        const duration = 1.2; 
+        
+        // Lấy UITransform của GameManager để tính tọa độ
+        const gameManagerTransform = this.node.getComponent(UITransform) || this.gridContainer.parent!.getComponent(UITransform);
+        if (!gameManagerTransform) return;
+
+        const paddingTop = 40;    // Khoảng cách đệm an toàn dưới đáy Timer
+        const paddingBottom = 40; // Khoảng cách đệm an toàn trên đỉnh nút Zoom
+
+        let finalY = 0;
+        let finalScale = 1.0;
+
+        // Kiểm tra xem cả 2 điểm neo trên và dưới đã được kéo thả đầy đủ chưa
+        if (this.timerNode && this.zoomIconNode) {
+            
+            // 1. 📐 TÍNH TOÁN BIÊN TRÊN (Đáy của cụm Timer)
+            const timerWorldPos = this.timerNode.getWorldPosition();
+            const timerLocalPos = gameManagerTransform.convertToNodeSpaceAR(timerWorldPos);
+            const timerTransform = this.timerNode.getComponent(UITransform);
+            const timerHeight = timerTransform ? timerTransform.height : 80;
+            const timerBottomY = timerLocalPos.y - (timerHeight / 2);
+            const topBound = timerBottomY - paddingTop; // Giới hạn trần trên của Map
+
+            // 2. 📐 TÍNH TOÁN BIÊN DƯỚI (Đỉnh của Nút Zoom kính lúp)
+            const zoomWorldPos = this.zoomIconNode.getWorldPosition();
+            const zoomLocalPos = gameManagerTransform.convertToNodeSpaceAR(zoomWorldPos);
+            const zoomTransform = this.zoomIconNode.getComponent(UITransform);
+            const zoomHeight = zoomTransform ? zoomTransform.height : 80;
+            const zoomTopY = zoomLocalPos.y + (zoomHeight / 2);
+            const bottomBound = zoomTopY + paddingBottom; // Giới hạn sàn dưới của Map
+
+            // 3. 📏 TÍNH TOÁN KHOẢNG KHÔNG GIAN KHẢ DỤNG KẸP GIỮA 2 NÚT
+            const availableHeight = topBound - bottomBound;
+
+            // 4. 📐 ĐO ĐẠC CHIỀU CAO THỰC TẾ CỦA BÀN CỜ RẮN
+            const dotDistance = this.spacing * 2;
+            const mapHeight = GridManager.Instance.rows * dotDistance;
+
+            // 👉 NẾU MAP VƯỢT QUÁ KHOẢNG CÁCH: Tự động co nhỏ Scale để vừa khít vùng an toàn
+            if (mapHeight > availableHeight) {
+                finalScale = availableHeight / mapHeight;
+            } 
+
+            finalY = (topBound + bottomBound) / 2;
+        }
+
+        // Tạo vector tỉ lệ đích và tỉ lệ xuất phát động dựa theo hệ số scale mới
+        const targetScale = new Vec3(finalScale, finalScale, 1);  
+        const startScale = new Vec3(0.05 * finalScale, 0.05 * finalScale, 1); 
+
+        // Áp dụng vị trí và chạy animation cho Lưới nền
         if (this.gridContainer) {
+            this.gridContainer.setPosition(new Vec3(0, finalY, 0));
             this.gridContainer.setScale(startScale);
             tween(this.gridContainer)
                 .to(duration, { scale: targetScale }, { easing: 'backOut' })
                 .start();
         }
 
-        // Phóng to toàn bộ các con rắn đồng bộ khớp vị trí
+        // Áp dụng vị trí và chạy animation đồng bộ cho Rắn
         if (this.snakeContainer) {
+            this.snakeContainer.setPosition(new Vec3(0, finalY, 0));
             this.snakeContainer.setScale(startScale);
             tween(this.snakeContainer)
                 .to(duration, { scale: targetScale }, { easing: 'backOut' })

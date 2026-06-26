@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Size, math, tween, sp } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Vec3, UITransform, Size, math, tween, sp, EventTouch, Vec2 } from 'cc';
 import { SnakeColor, SnakeNodeData, MoveDirection } from './SnakeCommon';
 import { GridManager } from './GridManager';
 import { TimeManager } from './TimeManager';
@@ -40,7 +40,7 @@ export class SnakeController extends Component {
 
     private moveProgress: number = 0; 
     private isStepTransitioning: boolean = false;
-    private stepDuration: number = 0.04; // Thời gian bò qua 1 ô (giây)
+    private stepDuration: number = 0.05; // Thời gian bò qua 1 ô (giây)
     private currentStep: number = 0;
     private totalSteps: number = 0;
     private hasCollision: boolean = false;
@@ -101,7 +101,26 @@ export class SnakeController extends Component {
         });
     }
 
-    private onSnakeClicked() {
+    private onSnakeClicked(event: EventTouch) {
+        if (event) {
+            const startPos = event.getStartLocation(); // Tọa độ lúc đặt ngón tay xuống
+            const endPos = event.getLocation();       // Tọa độ lúc nhấc ngón tay lên
+            
+            // Tính toán khoảng cách di chuyển thực tế của ngón tay (tính bằng Pixel)
+            const dragDistance = Vec2.distance(startPos, endPos);
+            
+            if (dragDistance > 10) {
+                return; 
+            }
+        }
+
+        if (this.isStepTransitioning) return;
+
+        if (this.isStunned) {
+            this.isStunned = false;
+            this.isMoving = false;
+        }
+
         if (this.isMoving) return;
         this.startMoving();
     }
@@ -142,7 +161,7 @@ export class SnakeController extends Component {
             this.changeFaceAnimation('happy', true);
         }
 
-        if (AudioManager.Instance) {
+        if (this.isEscaping && AudioManager.Instance) {
             AudioManager.Instance.playSFX(AudioManager.Instance.seSnakeMove);
         }
 

@@ -6,24 +6,27 @@ export class ConfettiManager extends Component {
     public static Instance: ConfettiManager = null!;
 
     @property([SpriteFrame])
-    private confettiSprites: SpriteFrame[] = []; // Nơi chứa mảng 6 mảnh ảnh endgame_effect
+    private confettiSprites: SpriteFrame[] = []; 
 
     @property({ displayName: "Số mảnh mỗi đợt" })
-    private piecesPerWave: number = 45; // Số lượng mảnh phun cho mỗi đợt
+    private piecesPerWave: number = 60; 
 
-    @property({ displayName: "Tổng số đợt bắn pháo" })
-    private totalWaves: number = 3; // Bắn 3 đợt liên tiếp
+    @property({ displayName: "Tổng số đợt bắn" })
+    private totalWaves: number = 3; 
 
-    @property({ displayName: "Thời gian giãn cách giữa các đợt" })
-    private waveInterval: number = 0.7; // Cứ sau 0.7 giây sẽ kích hoạt đợt tiếp theo
+    @property({ displayName: "Thời gian giãn cách đợt" })
+    private waveInterval: number = 0.5; 
+
+    @property({ group: { name: 'Cấu hình Kích Thước' }, displayName: "Scale nhỏ nhất" })
+    private minScale: number = 1.2; // Đã tăng mặc định từ 0.5 lên 1.2
+
+    @property({ group: { name: 'Cấu hình Kích Thước' }, displayName: "Scale lớn nhất" })
+    private maxScale: number = 2.2; // Đã tăng mặc định từ 1.2 lên 2.2
 
     protected onLoad() {
         ConfettiManager.Instance = this;
     }
 
-    /**
-     * 🔥 HÀM CÔNG KHAI: Kích nổ pháo hoa liên hoàn xuyên màn hình với quỹ đạo dài hơn
-     */
     public playWinConfetti() {
         const uiTransform = this.getComponent(UITransform);
         if (!uiTransform) return;
@@ -40,9 +43,7 @@ export class ConfettiManager extends Component {
 
     private fireSingleWave(viewWidth: number, viewHeight: number) {
         for (let i = 0; i < this.piecesPerWave; i++) {
-            this.scheduleOnce(() => {
-                this.spawnSingleConfettiPiece(viewWidth, viewHeight);
-            }, math.randomRange(0, 0.3));
+            this.spawnSingleConfettiPiece(viewWidth, viewHeight);
         }
     }
 
@@ -50,9 +51,7 @@ export class ConfettiManager extends Component {
         if (this.confettiSprites.length === 0) return;
 
         const pieceNode = new Node('ConfettiPiece');
-        pieceNode.layer = Layers.Enum.UI_2D;
-
-        const pieceTransform = pieceNode.addComponent(UITransform);
+        pieceNode.layer = Layers.Enum.UI_2D; 
         this.node.addChild(pieceNode);
 
         const sprite = pieceNode.addComponent(Sprite);
@@ -63,74 +62,54 @@ export class ConfettiManager extends Component {
         const uiOpacity = pieceNode.addComponent(UIOpacity);
         uiOpacity.opacity = 255;
 
-        // 1. Vị trí xuất phát từ rìa Trái hoặc rìa Phải
-        const isLeftSide = Math.random() > 0.5;
-        const startX = isLeftSide ? -(viewWidth / 2 + 100) : (viewWidth / 2 + 100);
-        // Xuất phát từ nửa dưới màn hình
-        const startY = math.randomRange(-viewHeight * 0.35, -viewHeight * 0.05);
+        const startX = math.randomRange(-viewWidth * 0.55, viewWidth * 0.55);
+        const startY = -viewHeight * 0.5 - 200;
 
         pieceNode.setPosition(new Vec3(startX, startY, 0));
 
-        const randomScale = math.randomRange(0.4, 1.2);
-        pieceNode.setScale(new Vec3(randomScale, randomScale, 1));
+        const scaleBase = math.randomRange(this.minScale, this.maxScale);
+        
+        // Vẫn giữ scale = 0 ban đầu để chống giật nhấp nháy khung hình
+        pieceNode.setScale(new Vec3(0, 0, 0));
 
-        // ========================================================
-        // 🔥 QUỸ ĐẠO MỚI: CẦU VỒNG PARABOL DÀI VÀ CAO HƠN KHI RƠI
-        // ========================================================
-        const targetX = isLeftSide ? (viewWidth / 2 + 50) : -(viewWidth / 2 + 50);
+        const targetX = startX + math.randomRange(-viewWidth * 0.3, viewWidth * 0.3);
+        const targetY = math.randomRange(-viewHeight * 0.1, viewHeight * 0.7);
 
-        // Đỉnh cao nhất trục Y khống chế VỪA PHẢI, ôm quanh khu vực Well Done
-        const peakY = math.randomRange(viewHeight * 0.12, viewHeight * 0.28);
+        const duration = math.randomRange(1.0, 1.8);
+        const rotationAngle = math.randomRange(-540, 540);
+        const delay = math.randomRange(0, 0.25); 
 
-        // 🔥 ĐÃ SỬA: Nâng góc rơi ở cạnh kia màn hình cao hơn, tạo hình vòng cung xa hơn
-        // Thay vì rơi xuống thấp hơn startY, endY giờ đây nằm gần hoặc thậm chí cao hơn startY
-        const endY = startY + math.randomRange(300, 350); // Lands between slightly lower and significantly higher than start
-
-        // Thời gian sống dài để hạt có "đủ thời gian" di chuyển quỹ đạo dài
-        const duration = math.randomRange(2.0, 2.8);
-        const randomAngle = math.randomRange(720, 2160) * (Math.random() > 0.5 ? 1 : -1);
-
-        let progressObj = { value: 0 };
-
-        tween(progressObj)
-            .to(duration, { value: 1 }, {
-                onUpdate: () => {
-                    if (!pieceNode || !pieceNode.isValid) return;
-
-                    let p = progressObj.value;
-
-                    // A. Trục X di chuyển tịnh tiến xuyên màn hình
-                    let currentX = startX + (targetX - startX) * p;
-
-                    // B. Trục Y uốn hình vòng cung mượt mà (Lao lên đỉnh rồi hạ độ cao dần theo endY mới)
-                    let currentY = startY;
-                    if (p < 0.45) {
-                        let normP = p / 0.45;
-                        currentY = startY + (peakY - startY) * Math.sin(normP * Math.PI / 2);
-                    } else {
-                        let normP = (p - 0.45) / 0.55;
-                        currentY = peakY + (endY - peakY) * (1 - Math.cos(normP * Math.PI / 2));
-                    }
-
-                    pieceNode.setPosition(currentX, currentY, 0);
-
-                    // C. Xoay tròn lấp lánh
-                    pieceNode.setRotationFromEuler(0, 0, randomAngle * p);
-
-                    // D. Fade Out muộn ở cuối hành trình
-                    if (p > 0.75) {
-                        let opacityProgress = (p - 0.75) / 0.25;
-                        uiOpacity.opacity = Math.floor(255 * (1 - opacityProgress));
-                    } else {
-                        uiOpacity.opacity = 255;
-                    }
-                }
-            })
-            .call(() => {
+        tween(pieceNode)
+            .delay(delay)
+            .call(() => { 
                 if (pieceNode && pieceNode.isValid) {
-                    pieceNode.destroy();
+                    // Áp dụng kích thước to hơn sau khi hết delay
+                    pieceNode.setScale(new Vec3(scaleBase, scaleBase, 1));
                 }
             })
+            .to(duration, { position: new Vec3(targetX, targetY, 0) }, { easing: 'quadOut' })
+            .call(() => {
+                const fallDuration = duration * 1.4;
+                const finalFallY = -viewHeight * 0.6; 
+                
+                tween(pieceNode)
+                    .to(fallDuration, { position: new Vec3(targetX + math.randomRange(-60, 60), finalFallY, 0) }, { easing: 'quadIn' })
+                    .start();
+
+                tween(uiOpacity)
+                    .to(fallDuration, { opacity: 0 })
+                    .call(() => {
+                        if (pieceNode && pieceNode.isValid) {
+                            pieceNode.destroy();
+                        }
+                    })
+                    .start();
+            })
+            .start();
+
+        tween(pieceNode)
+            .delay(delay)
+            .to(duration * 2.2, { angle: rotationAngle })
             .start();
     }
 }

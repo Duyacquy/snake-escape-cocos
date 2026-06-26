@@ -90,7 +90,6 @@ export class TimeManager extends Component {
         if (this.replayButton) this.replayOriginalScale = this.replayButton.getScale();
         if (this.iconSnakeNode) this.iconSnakeOriginalScale = this.iconSnakeNode.getScale();
 
-        // 🔥 LƯU LẠI THÔNG SỐ GỐC CỦA CỤM THỜI GIAN
         if (this.playtimeLabel) {
             this.labelOriginalScale = this.playtimeLabel.node.getScale();
             this.originalLabelColor = this.playtimeLabel.color.clone(); // Copy màu chữ ban đầu (trắng/xanh...)

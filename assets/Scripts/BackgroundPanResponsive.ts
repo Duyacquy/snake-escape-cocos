@@ -5,6 +5,9 @@ const { ccclass, property } = _decorator;
 @ccclass('BackgroundPanResponsive')
 export class BackgroundPanResponsive extends Component {
 
+    @property({ displayName: "Tốc độ vuốt nền (Thấp = Rít hơn)" })
+    private panSpeed: number = 0.45; // Mức độ ghì ma sát tối ưu
+
     private minX: number = 0;
     private maxX: number = 0;
     private minY: number = 0;
@@ -38,11 +41,13 @@ export class BackgroundPanResponsive extends Component {
     }
 
     private onTouchMove(event: EventTouch) {
+        if (event.getTouches().length >= 2) return;
+
         const delta = event.getDelta();
         let currentPos = this.node.getPosition();
 
-        let targetX = currentPos.x + delta.x;
-        let targetY = currentPos.y + delta.y;
+        let targetX = currentPos.x + (delta.x * this.panSpeed);
+        let targetY = currentPos.y + (delta.y * this.panSpeed);
 
         targetX = math.clamp(targetX, this.minX, this.maxX);
         targetY = math.clamp(targetY, this.minY, this.maxY);
